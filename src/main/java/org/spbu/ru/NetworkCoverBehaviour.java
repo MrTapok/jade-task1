@@ -1,115 +1,142 @@
 package org.spbu.ru;
 
-import jade.core.behaviours.CyclicBehaviour;
+import jade.core.behaviours.TickerBehaviour;
 import jade.lang.acl.ACLMessage;
 import jade.core.AID;
+import jade.wrapper.StaleProxyException;
+import java.text.DecimalFormat;
+import java.util.HashSet;
+import java.util.concurrent.TimeUnit;
 
-public class NetworkCoverBehaviour extends CyclicBehaviour
-{
-
+public class NetworkCoverBehaviour extends TickerBehaviour {
+    private int step;
+    private State state = State.SND;
     private NetworkAgent agent;
 
-    NetworkCoverBehaviour(NetworkAgent agent)
+    NetworkCoverBehaviour(NetworkAgent agent) 
     {
-        super(agent);
+        super(agent, TimeUnit.SECONDS.toMillis(1));
+        this.setFixedPeriod(true);
         this.agent = agent;
+        this.step = 0;
+    }
+
+    private void Send() 
+    {
+        double random;
+        boolean missed = false;
+        ACLMessage msg = new ACLMessage(ACLMessage.INFORM);
+        for (Integer neighbor : agent.AgentData.neighbors) 
+        {
+            switch (neighbor)
+            {
+                case 2:
+                    random = Math.random();
+                    if (random > agent.AgentData.networkConfiguration.probability) 
+                    {
+                        missed = true;
+                    }
+                    break;
+                case 3:
+                    random = Math.random();
+                    if (random < agent.AgentData.networkConfiguration.probability) 
+                    {
+                        try 
+                        {
+                            TimeUnit.MILLISECONDS.sleep((int) (Math.random() * agent.AgentData.networkConfiguration.maxDelay));
+                        } catch (InterruptedException e) 
+                        {
+                            System.out.println("Прерван");
+                        }
+                    }
+                    break;
+            }
+            if (missed) 
+            {
+                missed = false;
+                continue;
+            }
+
+            msg.addReceiver(new AID(neighbor.toString(), AID.ISLOCALNAME));
+        }
+        double valueWithNoise = agent.AgentData.value + (Math.random() * 0.2 - 0.1);
+        msg.setContent(String.valueOf(valueWithNoise));
+        agent.send(msg);
+
+        System.out.println(step + " - " + "Агент " + agent.getAID().getLocalName() + " отослал свое значение");
+    }
+
+    private void Receive() 
+    {
+        double result = 0;
+        HashSet<String> used = new HashSet<>();
+        double agentValue = agent.AgentData.value;
+        while ((agent.receive()) != null) 
+        {
+            ACLMessage msg = agent.receive();
+            if (msg != null) {
+                if (used.isEmpty() || !used.contains(msg.getSender().getLocalName())) 
+                {
+                    double receivedValue = Double.parseDouble(msg.getContent());
+                    System.out.println(step + " - " + "Агент " + agent.getAID().getLocalName() + " получил " + receivedValue);
+
+                    result += receivedValue - agentValue;
+                    used.add(msg.getSender().getLocalName());
+                }
+                else
+                    {
+                    if (used.size() == agent.AgentData.neighbors.length)
+                    {
+                        break;
+                    }
+                }
+            }
+        }
+        agent.AgentData.value = agentValue + agent.AgentData.networkConfiguration.alpha * result;
+
+        if (step >= this.agent.networkConfiguration.maxNumberSteps)
+        {
+            Kill();
+        }
+    }
+
+    private void Kill() 
+    {
+        String currentAgentName = agent.getAID().getLocalName();
+
+        DecimalFormat formatter = new DecimalFormat("#.######");
+        System.out.println("Шаг: " + step);
+        System.out.println("Агент: " + currentAgentName);
+        System.out.println("Результат: " + formatter.format(agent.AgentData.value));
+
+        jade.wrapper.AgentContainer container = agent.getContainerController();
+
+        agent.doDelete();
+
+        new Thread(() -> {
+            try {
+                container.kill();
+            }
+            catch (StaleProxyException ignored) {
+            }
+        }).start();
     }
 
     @Override
-    public void action()
+    public void onTick()
     {
-        ACLMessage msg = this.agent.blockingReceive();
-
-        if (msg != null)
-        {
-
-            switch (msg.getPerformative())
-            {
-                case ACLMessage.REQUEST:
-                    {
-
-                    if (!this.agent.Visited)
-                    {
-                        this.agent.Visited = true;
-                        this.agent.RequesterName = msg.getSender().getLocalName();
-
-                        int willSendMessageCount = 0;
-                        ACLMessage requestMessage = new ACLMessage(ACLMessage.REQUEST);
-                        System.out.println(this.agent.getLocalName() +
-                                " отправляет сообщение соседям: ");
-                        for (int i = 0; i < this.agent.AgentData.neighbors.length; ++i)
-                        {
-                            if (!this.agent.AgentData.neighbors[i].toString().equals(this.agent.RequesterName))
-                            {
-                                requestMessage.addReceiver(new AID(this.agent.AgentData.neighbors[i].toString(), AID.ISLOCALNAME));
-                                System.out.println(this.agent.getLocalName() +
-                                        " отправляет " +
-                                        this.agent.AgentData.neighbors[i]);
-                                willSendMessageCount++;
-                            }
-                        }
-
-                        if (willSendMessageCount > 0)
-                        {
-                            this.agent.SentMsgs = willSendMessageCount;
-                            this.agent.send(requestMessage);
-                        }
-                        else
-                        {
-                            ACLMessage response = msg.createReply();
-                            response.setPerformative(ACLMessage.INFORM);
-                            response.setContent(this.agent.AgentData.value.toString());
-                            this.agent.send(response);
-                        }
-                    }
-                    else
-                    {
-                        ACLMessage response = msg.createReply();
-                        response.setPerformative(ACLMessage.INFORM);
-                        response.setContent("0");
-                        this.agent.send(response);
-
-                        System.out.println("Уже посещено, (Отправитель: " + msg.getSender().getLocalName() + ") " + this.agent.getLocalName());
-                    }
-                    break;
-                }
-                case ACLMessage.INFORM:
-                    {
-                    this.agent.ReceivedMsgs++;
-                    this.agent.Buffer += Integer.parseInt(msg.getContent());
-                    System.out.println("Сообщение от " + msg.getSender().getLocalName() +
-                            " для " + this.agent.getLocalName() +
-                            ", отправлено сообщений: " + this.agent.SentMsgs +
-                            ", получено сообщений: " + this.agent.ReceivedMsgs +
-                            ", текущее значение: " + msg.getContent());
-                    if (this.agent.ReceivedMsgs == this.agent.SentMsgs)
-                    {
-
-                        int sum = this.agent.Buffer + this.agent.AgentData.value;
-
-                        if (this.agent.AgentData.isStartingAgent)
-                        {
-                            double mean = (double)sum / (double)this.agent.AgentData.numberOfNodes;
-                            System.out.println("---------------ОТЧЕТ-----------------");
-                            System.out.println("Сумма по всем узлам: " + sum);
-                            System.out.println("Количество узлов: " + this.agent.AgentData.numberOfNodes);
-                            System.out.println("Среднее арифметическое: " + mean);
-                        }
-                        else
-                        {
-                            ACLMessage response = new ACLMessage(ACLMessage.INFORM);
-                            System.out.println("Агенту " + this.agent.getLocalName() +
-                                    " возвратились все сообщения. Запрашивал: " +
-                                    this.agent.RequesterName + "; результат: " +
-                                    Integer.toString(sum));
-                            response.setContent(Integer.toString(sum));
-                            response.addReceiver(new AID(this.agent.RequesterName, AID.ISLOCALNAME));
-                            this.agent.send(response);
-                        }
-                    }
-                    break;
-                }
-            }
+        step++;
+        switch (state) {
+            case SND:
+                Send();
+                this.state = State.RCV;
+                break;
+            case RCV:
+                Receive();
+                this.state = State.SND;
+                break;
+            default:
+                block();
         }
     }
 }

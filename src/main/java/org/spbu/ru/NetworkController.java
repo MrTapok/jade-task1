@@ -4,16 +4,17 @@ import jade.core.ProfileImpl;
 import jade.core.Runtime;
 import jade.wrapper.ContainerController;
 
-class NetworkController
-{
+class NetworkController {
 
     private NetworkGraph networkGraph;
+    private NetworkConfiguration networkConfiguration;
     private final String host = "localhost";
-    private final String port = "9000";
+    private final String port = "10000";
 
-    NetworkController(NetworkGraph networkGraph)
+    NetworkController(NetworkGraph networkGraph, NetworkConfiguration networkConfiguration)
     {
         this.networkGraph = networkGraph;
+        this.networkConfiguration = networkConfiguration;
     }
 
     void initAgents()
@@ -24,26 +25,22 @@ class NetworkController
         profile.setParameter(Profile.MAIN_PORT, port);
         ContainerController containerController = jadeRuntime.createMainContainer(profile);
 
-        try
-        {
+        try {
             for (int i = 1; i <= this.networkGraph.getNodeNumber(); ++i)
             {
-                System.out.println(i);
+
                 AgentData[] payloadToAgent = {
                         new AgentData(this.networkGraph.getNodeWeight()[i],
                                 this.networkGraph.getEdges()[i],
                                 this.networkGraph.getNodeNumber(),
-                                (i == this.networkGraph.getNodeNumber()))
+                                networkConfiguration)
                 };
                 jade.wrapper.AgentController agent = containerController.createNewAgent(Integer.toString(i),
                         "org.spbu.ru.NetworkAgent",
                         payloadToAgent);
-
                 agent.start();
             }
-        }
-        catch (Exception e)
-        {
+        } catch (Exception e) {
             e.printStackTrace();
         }
     }

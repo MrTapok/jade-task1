@@ -1,16 +1,16 @@
 package org.spbu.ru;
 
 class AgentData {
-    Integer value;
+    double value;
     Integer[] neighbors;
-    boolean isStartingAgent = false;
     Integer numberOfNodes;
+    NetworkConfiguration networkConfiguration;
 
-    AgentData(Integer value, Integer[] neighbors, Integer numberOfNodes, boolean isStartingAgent)
+    AgentData(double value, Integer[] neighbors, Integer numberOfNodes, NetworkConfiguration networkConfiguration)
     {
         this.value = value;
         this.neighbors = neighbors;
         this.numberOfNodes = numberOfNodes;
-        this.isStartingAgent = isStartingAgent;
+        this.networkConfiguration = networkConfiguration;
     }
 }
