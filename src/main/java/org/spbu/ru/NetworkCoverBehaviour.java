@@ -62,13 +62,17 @@ public class NetworkCoverBehaviour extends TickerBehaviour {
         double valueWithNoise = agent.AgentData.value + (Math.random() * 0.2 - 0.1);
         msg.setContent(String.valueOf(valueWithNoise));
         agent.send(msg);
-        System.out.println(step + " - " + "Агент " + agent.getAID().getLocalName() + " отослал свое значение");
+        System.out.println(step +
+                " - " +
+                "Агент " +
+                agent.getAID().getLocalName() +
+                " отослал свое значение");
     }
 
     private void Receive() 
     {
-        double result = 0;
         HashSet<String> used = new HashSet<>();
+        double result = 0;
         double agentValue = agent.AgentData.value;
         while ((agent.receive()) != null) 
         {
@@ -77,7 +81,12 @@ public class NetworkCoverBehaviour extends TickerBehaviour {
                 if (used.isEmpty() || !used.contains(msg.getSender().getLocalName())) 
                 {
                     double receivedValue = Double.parseDouble(msg.getContent());
-                    System.out.println(step + " - " + "Агент " + agent.getAID().getLocalName() + " получил " + receivedValue);
+                    System.out.println(step +
+                            " - " +
+                            "Агент " +
+                            agent.getAID().getLocalName() +
+                            " получил " +
+                            receivedValue);
                     result += receivedValue - agentValue;
                     used.add(msg.getSender().getLocalName());
                 }

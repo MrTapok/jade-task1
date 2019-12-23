@@ -28,7 +28,6 @@ class NetworkController {
         try {
             for (int i = 1; i <= this.networkGraph.getNodeNumber(); ++i)
             {
-
                 AgentData[] payloadToAgent = {
                         new AgentData(this.networkGraph.getNodeWeight()[i],
                                 this.networkGraph.getEdges()[i],
