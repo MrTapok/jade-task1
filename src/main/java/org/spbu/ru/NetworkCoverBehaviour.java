@@ -62,7 +62,6 @@ public class NetworkCoverBehaviour extends TickerBehaviour {
         double valueWithNoise = agent.AgentData.value + (Math.random() * 0.2 - 0.1);
         msg.setContent(String.valueOf(valueWithNoise));
         agent.send(msg);
-
         System.out.println(step + " - " + "Агент " + agent.getAID().getLocalName() + " отослал свое значение");
     }
 
@@ -79,7 +78,6 @@ public class NetworkCoverBehaviour extends TickerBehaviour {
                 {
                     double receivedValue = Double.parseDouble(msg.getContent());
                     System.out.println(step + " - " + "Агент " + agent.getAID().getLocalName() + " получил " + receivedValue);
-
                     result += receivedValue - agentValue;
                     used.add(msg.getSender().getLocalName());
                 }
@@ -93,7 +91,6 @@ public class NetworkCoverBehaviour extends TickerBehaviour {
             }
         }
         agent.AgentData.value = agentValue + agent.AgentData.networkConfiguration.alpha * result;
-
         if (step >= this.agent.networkConfiguration.maxNumberSteps)
         {
             Kill();
@@ -103,16 +100,12 @@ public class NetworkCoverBehaviour extends TickerBehaviour {
     private void Kill() 
     {
         String currentAgentName = agent.getAID().getLocalName();
-
         DecimalFormat formatter = new DecimalFormat("#.######");
         System.out.println("Шаг: " + step);
         System.out.println("Агент: " + currentAgentName);
         System.out.println("Результат: " + formatter.format(agent.AgentData.value));
-
         jade.wrapper.AgentContainer container = agent.getContainerController();
-
         agent.doDelete();
-
         new Thread(() -> {
             try {
                 container.kill();
